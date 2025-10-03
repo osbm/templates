@@ -20,14 +20,14 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       # Nixpkgs instantiated for supported system types.
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
+      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlays.default ]; });
 
     in
 
     {
 
       # A Nixpkgs overlay.
-      overlay = final: prev: {
+      overlays.default = final: prev: {
 
         hello = with final; stdenv.mkDerivation rec {
           pname = "hello";
@@ -42,20 +42,19 @@
 
       # Provide some binary packages for selected system types.
       packages = forAllSystems (system:
-        {
+        rec {
           inherit (nixpkgsFor.${system}) hello;
+          # The default package for 'nix build'. This makes sense if the
+          # flake provides only one package or there is a clear "main"
+          # package.
+          default = hello;
         });
-
-      # The default package for 'nix build'. This makes sense if the
-      # flake provides only one package or there is a clear "main"
-      # package.
-      defaultPackage = forAllSystems (system: self.packages.${system}.hello);
 
       # A NixOS module, if applicable (e.g. if the package provides a system service).
       nixosModules.hello =
         { pkgs, ... }:
         {
-          nixpkgs.overlays = [ self.overlay ];
+          nixpkgs.overlays = [ self.overlays.default ];
 
           environment.systemPackages = [ pkgs.hello ];
 
